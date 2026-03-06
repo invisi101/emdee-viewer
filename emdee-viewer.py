@@ -40,7 +40,7 @@ pre {
     overflow-x: auto;
     border: 1px solid #3f3f46;
 }
-pre code { background: none; padding: 0; }
+pre code { background: none; padding: 0; font-size: 1rem; }
 blockquote {
     border-left: 3px solid #60a5fa;
     margin-left: 0;

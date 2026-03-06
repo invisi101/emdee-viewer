@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2d2d3a"/>
+      <stop offset="100%" style="stop-color:#1c1c22"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#818cf8"/>
+      <stop offset="100%" style="stop-color:#60a5fa"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect x="4" y="4" width="120" height="120" rx="24" fill="url(#bg)" stroke="#3f3f46" stroke-width="2"/>
+  <!-- MD text -->
+  <text x="64" y="58" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="800" font-size="38" fill="url(#accent)">MD</text>
+  <!-- Underline accent -->
+  <rect x="28" y="66" width="72" height="3" rx="1.5" fill="url(#accent)" opacity="0.6"/>
+  <!-- Subtitle -->
+  <text x="64" y="90" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="400" font-size="14" fill="#a1a1aa">viewer</text>
+</svg>
