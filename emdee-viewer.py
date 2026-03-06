@@ -116,6 +116,19 @@ class EmDeeWindow(Gtk.ApplicationWindow):
         paned.set_position(220)
         self.add(paned)
 
+        welcome = """<!DOCTYPE html><html><head><style>
+body { background: #1c1c22; color: #71717a; display: flex;
+       align-items: center; justify-content: center; height: 90vh;
+       font-family: system-ui; }
+.msg { text-align: center; }
+h1 { color: #d4d4d8; font-size: 1.5rem; }
+p { font-size: 1rem; }
+</style></head><body><div class="msg">
+<h1>EmDee Viewer</h1>
+<p>Click <b>Open</b> to view a markdown file</p>
+</div></body></html>"""
+        self.webview.load_html(welcome, 'file:///')
+
         self.current_file = None
         self.file_monitor = None
 
@@ -241,4 +254,6 @@ class EmDeeWindow(Gtk.ApplicationWindow):
             self.load_file(filepath)
 
 app = EmDeeViewer()
+settings = Gtk.Settings.get_default()
+settings.set_property('gtk-application-prefer-dark-theme', True)
 app.run(sys.argv)
