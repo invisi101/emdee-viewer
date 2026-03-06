@@ -83,7 +83,26 @@ class EmDeeWindow(Gtk.ApplicationWindow):
 
         self.webview = WebKit2.WebView()
         self.webview.set_background_color(Gdk.RGBA(0.11, 0.11, 0.14, 1.0))
-        self.add(self.webview)
+        paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
+
+        # TOC sidebar
+        self.toc_store = Gtk.TreeStore(str, str)  # display text, anchor id
+        self.toc_view = Gtk.TreeView(model=self.toc_store)
+        self.toc_view.set_headers_visible(False)
+        renderer = Gtk.CellRendererText()
+        column = Gtk.TreeViewColumn('', renderer, text=0)
+        self.toc_view.append_column(column)
+        self.toc_view.connect('row-activated', self.on_toc_clicked)
+
+        toc_scroll = Gtk.ScrolledWindow()
+        toc_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        toc_scroll.set_size_request(200, -1)
+        toc_scroll.add(self.toc_view)
+
+        paned.pack1(toc_scroll, resize=False, shrink=False)
+        paned.pack2(self.webview, resize=True, shrink=False)
+        paned.set_position(220)
+        self.add(paned)
 
         self.current_file = None
 
@@ -124,6 +143,10 @@ class EmDeeWindow(Gtk.ApplicationWindow):
         })
         html_body = md.convert(md_text)
 
+        self.toc_store.clear()
+        self._populate_toc(md.toc_tokens, None)
+        self.toc_view.expand_all()
+
         html = f"""<!DOCTYPE html>
 <html><head>
 <style>{DARK_CSS}\n{pygments_css}</style>
@@ -132,6 +155,19 @@ class EmDeeWindow(Gtk.ApplicationWindow):
         self.webview.load_html(html, f'file://{filepath}')
         self.header.set_subtitle(GLib.path_get_basename(filepath))
         self.current_file = filepath
+
+    def _populate_toc(self, tokens, parent):
+        for token in tokens:
+            row = self.toc_store.append(parent, [token['name'], token['id']])
+            if token.get('children'):
+                self._populate_toc(token['children'], row)
+
+    def on_toc_clicked(self, treeview, path, column):
+        model = treeview.get_model()
+        iter_ = model.get_iter(path)
+        anchor = model.get_value(iter_, 1)
+        js = f"document.getElementById('{anchor}').scrollIntoView({{behavior:'smooth'}});"
+        self.webview.run_javascript(js, None, None, None)
 
 app = EmDeeViewer()
 app.run(sys.argv)
