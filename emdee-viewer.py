@@ -6,7 +6,49 @@ gi.require_version('Gtk', '3.0')
 gi.require_version('WebKit2', '4.1')
 
 import sys
-from gi.repository import Gtk, Gio
+from gi.repository import Gtk, WebKit2, Gio, GLib, Gdk
+import markdown
+from pygments.formatters import HtmlFormatter
+
+DARK_CSS = """
+body {
+    background: #1c1c22;
+    color: #d4d4d8;
+    font-family: system-ui, -apple-system, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+    line-height: 1.7;
+}
+h1, h2, h3, h4, h5, h6 { color: #e4e4e7; margin-top: 1.5em; }
+h1 { border-bottom: 1px solid #3f3f46; padding-bottom: 0.3em; }
+a { color: #60a5fa; }
+code {
+    background: #27272a;
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+pre {
+    background: #18181b;
+    padding: 1rem;
+    border-radius: 8px;
+    overflow-x: auto;
+    border: 1px solid #3f3f46;
+}
+pre code { background: none; padding: 0; }
+blockquote {
+    border-left: 3px solid #60a5fa;
+    margin-left: 0;
+    padding-left: 1rem;
+    color: #a1a1aa;
+}
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #3f3f46; padding: 0.5rem; }
+th { background: #27272a; }
+hr { border: none; border-top: 1px solid #3f3f46; }
+img { max-width: 100%; }
+"""
 
 class EmDeeViewer(Gtk.Application):
     def __init__(self):
@@ -39,6 +81,12 @@ class EmDeeWindow(Gtk.ApplicationWindow):
 
         self.header = header
 
+        self.webview = WebKit2.WebView()
+        self.webview.set_background_color(Gdk.RGBA(0.11, 0.11, 0.14, 1.0))
+        self.add(self.webview)
+
+        self.current_file = None
+
     def on_open_clicked(self, button):
         dialog = Gtk.FileChooserDialog(
             title='Open Markdown File',
@@ -61,6 +109,29 @@ class EmDeeWindow(Gtk.ApplicationWindow):
         if dialog.run() == Gtk.ResponseType.OK:
             self.load_file(dialog.get_filename())
         dialog.destroy()
+
+    def load_file(self, filepath):
+        with open(filepath, 'r') as f:
+            md_text = f.read()
+
+        pygments_css = HtmlFormatter(style='monokai').get_style_defs('.codehilite')
+
+        md = markdown.Markdown(extensions=[
+            'fenced_code', 'codehilite', 'tables', 'toc',
+        ], extension_configs={
+            'codehilite': {'css_class': 'codehilite', 'guess_lang': True},
+            'toc': {'permalink': False},
+        })
+        html_body = md.convert(md_text)
+
+        html = f"""<!DOCTYPE html>
+<html><head>
+<style>{DARK_CSS}\n{pygments_css}</style>
+</head><body>{html_body}</body></html>"""
+
+        self.webview.load_html(html, f'file://{filepath}')
+        self.header.set_subtitle(GLib.path_get_basename(filepath))
+        self.current_file = filepath
 
 app = EmDeeViewer()
 app.run(sys.argv)
