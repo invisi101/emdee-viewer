@@ -117,6 +117,7 @@ class EmDeeWindow(Gtk.ApplicationWindow):
         self.add(paned)
 
         self.current_file = None
+        self.file_monitor = None
 
     def on_open_clicked(self, button):
         dialog = Gtk.FileChooserDialog(
@@ -173,6 +174,16 @@ class EmDeeWindow(Gtk.ApplicationWindow):
         if child:
             self.recent_popover.remove(child)
         self._update_recent_menu()
+
+        if self.file_monitor:
+            self.file_monitor.cancel()
+        gfile = Gio.File.new_for_path(filepath)
+        self.file_monitor = gfile.monitor_file(Gio.FileMonitorFlags.NONE, None)
+        self.file_monitor.connect('changed', self.on_file_changed)
+
+    def on_file_changed(self, monitor, file, other_file, event):
+        if event == Gio.FileMonitorEvent.CHANGES_DONE_HINT:
+            self.load_file(self.current_file)
 
     def _populate_toc(self, tokens, parent):
         for token in tokens:
