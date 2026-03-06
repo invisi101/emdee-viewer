@@ -142,6 +142,8 @@ p { font-size: 1rem; }
         self.current_file = None
         self.file_monitor = None
 
+        self.show_all()
+
     def on_open_clicked(self, button):
         dialog = Gtk.FileChooserDialog(
             title='Open Markdown File',
