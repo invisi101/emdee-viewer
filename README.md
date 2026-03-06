@@ -1,6 +1,10 @@
-# EmDee Viewer
+<p align="center">
+  <img src="emdee-viewer.svg" width="128" height="128" alt="EmDee Viewer">
+</p>
 
-A lightweight GTK markdown viewer with a dark theme.
+<h1 align="center">EmDee Viewer</h1>
+
+<p align="center">A lightweight GTK markdown viewer with a dark theme.</p>
 
 ## Features
 
