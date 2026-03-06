@@ -5,10 +5,14 @@ import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('WebKit2', '4.1')
 
+import json
+import os
 import sys
 from gi.repository import Gtk, WebKit2, Gio, GLib, Gdk
 import markdown
 from pygments.formatters import HtmlFormatter
+
+RECENT_FILE = os.path.expanduser('~/.config/emdee-viewer/recent.json')
 
 DARK_CSS = """
 body {
@@ -78,6 +82,14 @@ class EmDeeWindow(Gtk.ApplicationWindow):
         open_btn = Gtk.Button(label='Open')
         open_btn.connect('clicked', self.on_open_clicked)
         header.pack_start(open_btn)
+
+        recent_btn = Gtk.MenuButton(label='Recent')
+        self.recent_popover = Gtk.Popover()
+        recent_btn.set_popover(self.recent_popover)
+        header.pack_start(recent_btn)
+        self.recent_btn = recent_btn
+
+        self._update_recent_menu()
 
         self.header = header
 
@@ -156,6 +168,12 @@ class EmDeeWindow(Gtk.ApplicationWindow):
         self.header.set_subtitle(GLib.path_get_basename(filepath))
         self.current_file = filepath
 
+        self._save_recent(filepath)
+        child = self.recent_popover.get_child()
+        if child:
+            self.recent_popover.remove(child)
+        self._update_recent_menu()
+
     def _populate_toc(self, tokens, parent):
         for token in tokens:
             row = self.toc_store.append(parent, [token['name'], token['id']])
@@ -168,6 +186,48 @@ class EmDeeWindow(Gtk.ApplicationWindow):
         anchor = model.get_value(iter_, 1)
         js = f"document.getElementById('{anchor}').scrollIntoView({{behavior:'smooth'}});"
         self.webview.run_javascript(js, None, None, None)
+
+    def _load_recent(self):
+        try:
+            with open(RECENT_FILE, 'r') as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return []
+
+    def _save_recent(self, filepath):
+        os.makedirs(os.path.dirname(RECENT_FILE), exist_ok=True)
+        recent = self._load_recent()
+        if filepath in recent:
+            recent.remove(filepath)
+        recent.insert(0, filepath)
+        recent = recent[:10]  # keep last 10
+        with open(RECENT_FILE, 'w') as f:
+            json.dump(recent, f)
+
+    def _update_recent_menu(self):
+        recent = self._load_recent()
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        box.set_margin_top(8)
+        box.set_margin_bottom(8)
+        box.set_margin_start(8)
+        box.set_margin_end(8)
+
+        if not recent:
+            label = Gtk.Label(label='No recent files')
+            box.pack_start(label, False, False, 0)
+        else:
+            for filepath in recent:
+                btn = Gtk.ModelButton(label=GLib.path_get_basename(filepath))
+                btn.connect('clicked', lambda b, p=filepath: self._open_recent(p))
+                box.pack_start(btn, False, False, 0)
+
+        box.show_all()
+        self.recent_popover.add(box)
+
+    def _open_recent(self, filepath):
+        self.recent_popover.popdown()
+        if os.path.exists(filepath):
+            self.load_file(filepath)
 
 app = EmDeeViewer()
 app.run(sys.argv)
