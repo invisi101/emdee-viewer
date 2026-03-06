@@ -61,12 +61,22 @@ class EmDeeViewer(Gtk.Application):
             flags=Gio.ApplicationFlags.HANDLES_OPEN
         )
 
+    def do_startup(self):
+        Gtk.Application.do_startup(self)
+        settings = Gtk.Settings.get_default()
+        if settings:
+            settings.set_property('gtk-application-prefer-dark-theme', True)
+
     def do_activate(self):
-        win = EmDeeWindow(application=self)
+        win = self.get_active_window()
+        if not win:
+            win = EmDeeWindow(application=self)
         win.present()
 
     def do_open(self, files, n_files, hint):
-        win = EmDeeWindow(application=self)
+        win = self.get_active_window()
+        if not win:
+            win = EmDeeWindow(application=self)
         win.load_file(files[0].get_path())
         win.present()
 
@@ -156,8 +166,11 @@ p { font-size: 1rem; }
         dialog.destroy()
 
     def load_file(self, filepath):
-        with open(filepath, 'r') as f:
-            md_text = f.read()
+        try:
+            with open(filepath, 'r') as f:
+                md_text = f.read()
+        except (FileNotFoundError, PermissionError, OSError):
+            return
 
         pygments_css = HtmlFormatter(style='monokai').get_style_defs('.codehilite')
 
@@ -178,7 +191,8 @@ p { font-size: 1rem; }
 <style>{DARK_CSS}\n{pygments_css}</style>
 </head><body>{html_body}</body></html>"""
 
-        self.webview.load_html(html, f'file://{filepath}')
+        base_uri = GLib.filename_to_uri(os.path.dirname(filepath), None) + '/'
+        self.webview.load_html(html, base_uri)
         self.header.set_subtitle(GLib.path_get_basename(filepath))
         self.current_file = filepath
 
@@ -196,7 +210,14 @@ p { font-size: 1rem; }
 
     def on_file_changed(self, monitor, file, other_file, event):
         if event == Gio.FileMonitorEvent.CHANGES_DONE_HINT:
-            self.load_file(self.current_file)
+            if hasattr(self, '_reload_timeout') and self._reload_timeout:
+                GLib.source_remove(self._reload_timeout)
+            self._reload_timeout = GLib.timeout_add(300, self._do_reload)
+
+    def _do_reload(self):
+        self._reload_timeout = None
+        self.load_file(self.current_file)
+        return False
 
     def _populate_toc(self, tokens, parent):
         for token in tokens:
@@ -254,6 +275,4 @@ p { font-size: 1rem; }
             self.load_file(filepath)
 
 app = EmDeeViewer()
-settings = Gtk.Settings.get_default()
-settings.set_property('gtk-application-prefer-dark-theme', True)
 app.run(sys.argv)
