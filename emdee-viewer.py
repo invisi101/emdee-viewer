@@ -101,6 +101,15 @@ class EmDeeWindow(Gtk.ApplicationWindow):
 
         self._update_recent_menu()
 
+        zoom_out_btn = Gtk.Button(label='A−')
+        zoom_out_btn.connect('clicked', self.on_zoom_out)
+        header.pack_end(zoom_out_btn)
+
+        zoom_in_btn = Gtk.Button(label='A+')
+        zoom_in_btn.connect('clicked', self.on_zoom_in)
+        header.pack_end(zoom_in_btn)
+
+        self.font_size = 1.0
         self.header = header
 
         self.webview = WebKit2.WebView()
@@ -195,6 +204,7 @@ p { font-size: 1rem; }
 
         base_uri = GLib.filename_to_uri(os.path.dirname(filepath), None) + '/'
         self.webview.load_html(html, base_uri)
+        self.webview.connect('load-changed', self._on_load_finished)
         self.header.set_subtitle(GLib.path_get_basename(filepath))
         self.current_file = filepath
 
@@ -209,6 +219,23 @@ p { font-size: 1rem; }
         gfile = Gio.File.new_for_path(filepath)
         self.file_monitor = gfile.monitor_file(Gio.FileMonitorFlags.NONE, None)
         self.file_monitor.connect('changed', self.on_file_changed)
+
+    def _on_load_finished(self, webview, event):
+        if event == WebKit2.LoadEvent.FINISHED:
+            self._apply_font_size()
+            webview.disconnect_by_func(self._on_load_finished)
+
+    def _apply_font_size(self):
+        js = f"document.body.style.fontSize='{self.font_size:.1f}rem';"
+        self.webview.run_javascript(js, None, None, None)
+
+    def on_zoom_in(self, button):
+        self.font_size = min(self.font_size + 0.1, 3.0)
+        self._apply_font_size()
+
+    def on_zoom_out(self, button):
+        self.font_size = max(self.font_size - 0.1, 0.5)
+        self._apply_font_size()
 
     def on_file_changed(self, monitor, file, other_file, event):
         if event == Gio.FileMonitorEvent.CHANGES_DONE_HINT:
