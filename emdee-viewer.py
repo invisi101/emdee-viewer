@@ -7,12 +7,14 @@ gi.require_version('WebKit2', '4.1')
 
 import json
 import os
+import re
 import sys
 from gi.repository import Gtk, WebKit2, Gio, GLib, Gdk
 import markdown
 from pygments.formatters import HtmlFormatter
 
 RECENT_FILE = os.path.expanduser('~/.config/emdee-viewer/recent.json')
+THEME_CSS_FILE = os.path.expanduser('~/.config/omarchy/current/theme/emdee-viewer.css')
 
 DARK_CSS = """
 body {
@@ -53,6 +55,13 @@ th { background: #27272a; }
 hr { border: none; border-top: 1px solid #3f3f46; }
 img { max-width: 100%; }
 """
+
+def _load_css():
+    try:
+        with open(THEME_CSS_FILE, 'r') as f:
+            return f.read()
+    except (FileNotFoundError, PermissionError, OSError):
+        return DARK_CSS
 
 class EmDeeViewer(Gtk.Application):
     def __init__(self):
@@ -113,7 +122,10 @@ class EmDeeWindow(Gtk.ApplicationWindow):
         self.header = header
 
         self.webview = WebKit2.WebView()
-        self.webview.set_background_color(Gdk.RGBA(0.11, 0.11, 0.14, 1.0))
+        self.css = _load_css()
+        bg_hex = self._parse_bg_color(self.css)
+        self.webview.set_background_color(bg_hex)
+        self._apply_gtk_theme(self.css)
         paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
 
         # TOC sidebar
@@ -135,13 +147,12 @@ class EmDeeWindow(Gtk.ApplicationWindow):
         paned.set_position(220)
         self.add(paned)
 
-        welcome = """<!DOCTYPE html><html><head><style>
-body { background: #1c1c22; color: #71717a; display: flex;
-       align-items: center; justify-content: center; height: 90vh;
-       font-family: system-ui; }
-.msg { text-align: center; }
-h1 { color: #d4d4d8; font-size: 1.5rem; }
-p { font-size: 1rem; }
+        welcome = f"""<!DOCTYPE html><html><head><style>
+{self.css}
+body {{ display: flex; align-items: center; justify-content: center; height: 90vh; }}
+.msg {{ text-align: center; }}
+h1 {{ font-size: 1.5rem; }}
+p {{ font-size: 1rem; }}
 </style></head><body><div class="msg">
 <h1>EmDee Viewer</h1>
 <p>Click <b>Open</b> to view a markdown file</p>
@@ -152,6 +163,42 @@ p { font-size: 1rem; }
         self.file_monitor = None
 
         self.show_all()
+
+    @staticmethod
+    def _parse_bg_color(css):
+        match = re.search(r'background:\s*(#[0-9a-fA-F]{6})', css)
+        if match:
+            h = match.group(1)
+            r, g, b = int(h[1:3], 16) / 255, int(h[3:5], 16) / 255, int(h[5:7], 16) / 255
+            return Gdk.RGBA(r, g, b, 1.0)
+        return Gdk.RGBA(0.11, 0.11, 0.14, 1.0)
+
+    def _apply_gtk_theme(self, css):
+        bg = re.search(r'background:\s*(#[0-9a-fA-F]{6})', css)
+        fg = re.search(r'color:\s*(#[0-9a-fA-F]{6})', css)
+        accent = re.search(r'a \{ color:\s*(#[0-9a-fA-F]{6})', css)
+        bg_color = bg.group(1) if bg else '#1c1c22'
+        fg_color = fg.group(1) if fg else '#d4d4d8'
+        accent_color = accent.group(1) if accent else '#60a5fa'
+        gtk_css = f"""
+            treeview {{
+                background-color: {bg_color};
+                color: {fg_color};
+            }}
+            treeview:selected {{
+                background-color: {accent_color};
+                color: {bg_color};
+            }}
+            scrolledwindow {{
+                background-color: {bg_color};
+            }}
+        """
+        provider = Gtk.CssProvider()
+        provider.load_from_data(gtk_css.encode())
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(), provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
 
     def on_open_clicked(self, button):
         dialog = Gtk.FileChooserDialog(
@@ -199,7 +246,7 @@ p { font-size: 1rem; }
 
         html = f"""<!DOCTYPE html>
 <html><head>
-<style>{DARK_CSS}\n{pygments_css}</style>
+<style>{self.css}\n{pygments_css}</style>
 </head><body>{html_body}</body></html>"""
 
         base_uri = GLib.filename_to_uri(os.path.dirname(filepath), None) + '/'
