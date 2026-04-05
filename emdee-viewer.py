@@ -110,6 +110,11 @@ class EmDeeWindow(Gtk.ApplicationWindow):
 
         self._update_recent_menu()
 
+        toc_btn = Gtk.ToggleButton(label='TOC')
+        toc_btn.set_active(True)
+        toc_btn.connect('toggled', self.on_toc_toggled)
+        header.pack_end(toc_btn)
+
         zoom_out_btn = Gtk.Button(label='A−')
         zoom_out_btn.connect('clicked', self.on_zoom_out)
         header.pack_end(zoom_out_btn)
@@ -141,6 +146,8 @@ class EmDeeWindow(Gtk.ApplicationWindow):
         toc_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         toc_scroll.set_size_request(200, -1)
         toc_scroll.add(self.toc_view)
+        self.toc_scroll = toc_scroll
+        self.paned = paned
 
         paned.pack1(toc_scroll, resize=False, shrink=False)
         paned.pack2(self.webview, resize=True, shrink=False)
@@ -199,6 +206,13 @@ p {{ font-size: 1rem; }}
             Gdk.Screen.get_default(), provider,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
+
+    def on_toc_toggled(self, button):
+        if button.get_active():
+            self.toc_scroll.show()
+            self.paned.set_position(220)
+        else:
+            self.toc_scroll.hide()
 
     def on_open_clicked(self, button):
         dialog = Gtk.FileChooserDialog(
