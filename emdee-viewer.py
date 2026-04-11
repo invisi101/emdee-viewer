@@ -111,7 +111,7 @@ class EmDeeWindow(Gtk.ApplicationWindow):
         self._update_recent_menu()
 
         toc_btn = Gtk.ToggleButton(label='TOC')
-        toc_btn.set_active(True)
+        toc_btn.set_active(False)
         toc_btn.connect('toggled', self.on_toc_toggled)
         header.pack_end(toc_btn)
 
@@ -170,6 +170,7 @@ p {{ font-size: 1rem; }}
         self.file_monitor = None
 
         self.show_all()
+        self.toc_scroll.hide()
 
     @staticmethod
     def _parse_bg_color(css):
